@@ -1,0 +1,57 @@
+Listagem de caminhos de pasta
+O número de série do volume é 444D-491F
+C:.
+¦   estruturaback.txt
+¦   main.py
+¦   README.MD
+¦   requirements.txt
+¦   
++---app
+¦   ¦   __init__.py
+¦   ¦   
+¦   +---api
+¦   ¦   ¦   routes.py
+¦   ¦   ¦   
+¦   ¦   +---__pycache__
+¦   ¦           routes.cpython-314.pyc
+¦   ¦           
+¦   +---core
+¦   ¦   ¦   config.py
+¦   ¦   ¦   
+¦   ¦   +---__pycache__
+¦   ¦           config.cpython-314.pyc
+¦   ¦           
+¦   +---enum
+¦   ¦   ¦   enums.py
+¦   ¦   ¦   
+¦   ¦   +---__pycache__
+¦   ¦           enums.cpython-314.pyc
+¦   ¦           
+¦   +---ia
+¦   ¦       ia.py
+¦   ¦       
+¦   +---log
+¦   ¦   ¦   logger.py
+¦   ¦   ¦   
+¦   ¦   +---__pycache__
+¦   ¦           logger.cpython-314.pyc
+¦   ¦           
+¦   +---models
+¦   ¦   ¦   schema.py
+¦   ¦   ¦   
+¦   ¦   +---__pycache__
+¦   ¦           schema.cpython-314.pyc
+¦   ¦           
+¦   +---services
+¦   ¦   ¦   vibration.py
+¦   ¦   ¦   
+¦   ¦   +---__pycache__
+¦   ¦           vibration.cpython-314.pyc
+¦   ¦           
+¦   +---__pycache__
+¦           main.cpython-314.pyc
+¦           __init__.cpython-314.pyc
+¦           
++---__pycache__
+        main.cpython-314.pyc
+        
