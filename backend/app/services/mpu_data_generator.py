@@ -11,7 +11,7 @@ from app.log.logger import log
 class MPU6050DataGenerator:
     """Gera dados simulados de MPU6050 e os emite em tempo real"""
     
-    def __init__(self, fs: int = 100, duration: int = 60):
+    def __init__(self, fs: int = 0.5, duration: int = 60):  # 1 dado a cada 2 segundos
         self.fs = fs  # Frequência de amostragem (Hz)
         self.duration = duration  # Duração total da simulação (segundos)
         self.current_index = 0
@@ -24,7 +24,7 @@ class MPU6050DataGenerator:
         if self.dataframe is not None and not force:
             return self.dataframe
             
-        n_samples = self.fs * self.duration
+        n_samples = int(self.fs * self.duration)
         start_time = datetime.now()
         
         timestamps = [
@@ -54,16 +54,17 @@ class MPU6050DataGenerator:
             gyro_y[idx] += np.random.uniform(50, 150)
             gyro_z[idx] += np.random.uniform(50, 150)
         
-        # Falha contínua
-        fault_start = np.random.randint(0, n_samples - 300)
-        fault_end = fault_start + 300
-        for i in range(fault_start, fault_end):
-            acc_x[i] += np.sin(2 * np.pi * 20 * t[i]) * 0.5
-            acc_y[i] += np.sin(2 * np.pi * 20 * t[i]) * 0.5
-            acc_z[i] += np.sin(2 * np.pi * 20 * t[i]) * 0.5
-            gyro_x[i] += np.sin(2 * np.pi * 20 * t[i]) * 20
-            gyro_y[i] += np.sin(2 * np.pi * 20 * t[i]) * 20
-            gyro_z[i] += np.sin(2 * np.pi * 20 * t[i]) * 20
+        # Falha contínua (apenas se houver samples suficientes)
+        if n_samples > 300:
+            fault_start = np.random.randint(0, n_samples - 300)
+            fault_end = fault_start + 300
+            for i in range(fault_start, fault_end):
+                acc_x[i] += np.sin(2 * np.pi * 20 * t[i]) * 0.5
+                acc_y[i] += np.sin(2 * np.pi * 20 * t[i]) * 0.5
+                acc_z[i] += np.sin(2 * np.pi * 20 * t[i]) * 0.5
+                gyro_x[i] += np.sin(2 * np.pi * 20 * t[i]) * 20
+                gyro_y[i] += np.sin(2 * np.pi * 20 * t[i]) * 20
+                gyro_z[i] += np.sin(2 * np.pi * 20 * t[i]) * 20
         
         # RMS da vibração
         vibration_rms = np.sqrt(acc_x**2 + acc_y**2 + acc_z**2)
@@ -119,7 +120,7 @@ class MPU6050DataGenerator:
             # Formato compatível com o frontend
             sensor_data = {
                 "sensor_id": "MPU6050_01",
-                "vibracao": round(float(row["vibration_rms"]) * 100, 2),  # Converte para mm/s
+                "vibracao": round(float(row["vibration_rms"]) * 50, 2),  # Converte para mm/s
                 "temperatura": 42.0 + np.random.normal(0, 2),  # Temperatura simulada
                 "status": self._get_status(float(row["vibration_rms"])),
                 "risk_pct": int(min(100, float(row["vibration_rms"]) * 30)),

@@ -12,8 +12,7 @@ from app.services.mpu_data_generator import MPU6050DataGenerator
 class VibrationService:
     def __init__(self):
         # NOVO: Usa o gerador MPU6050
-        self.mpu_generator = MPU6050DataGenerator(fs=100, duration=60)
-        
+        self.mpu_generator = MPU6050DataGenerator(duration=60)  # usa o valor padrão do gerador        
         # Mantém compatibilidade com estrutura antiga
         self.sensores = {
             "MPU6050_01": {
