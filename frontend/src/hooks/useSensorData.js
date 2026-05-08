@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { formatTime } from "@/lib/utils";
-import { startSimulation as startSimulationApi } from "@/services/sensorApi";
+import {
+  startSimulation as startSimulationApi,
+  getHistory,
+  getAnomalyHistory,
+} from "@/services/sensorApi";
 
 const WS_URL =
   process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000/api/v1/ws";
@@ -13,6 +17,7 @@ const INITIAL_RECONNECT_DELAY = 1000;
 export function useSensorData() {
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
+  const [anomalies, setAnomalies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -62,8 +67,11 @@ export function useSensorData() {
               label,
               value: fresh.vibracao || 0,
               temperatura: fresh.temperatura,
-              energia: fresh.energia,
-              timestamp: new Date().toISOString(),
+              energia:
+                fresh.energia ?? (fresh.vibracao ? fresh.vibracao ** 2 : 0),
+              timestamp: fresh.timestamp
+                ? new Date(fresh.timestamp).toISOString()
+                : new Date().toISOString(),
             },
           ].slice(-MAX_HISTORY);
 
@@ -115,6 +123,78 @@ export function useSensorData() {
     }
   });
 
+  const fetchHistory = async () => {
+    try {
+      const [historyResponse, anomaliesResponse] = await Promise.all([
+        getHistory(MAX_HISTORY),
+        getAnomalyHistory(20),
+      ]);
+
+      if (
+        historyResponse.status === "ok" &&
+        Array.isArray(historyResponse.data)
+      ) {
+        const rows = historyResponse.data.reverse();
+        const formatted = rows.map((row) => {
+          const timestamp = row.timestamp
+            ? new Date(row.timestamp)
+            : new Date();
+          const vibration = Number(row.vibration_rms ?? 0);
+          return {
+            label: formatTime(timestamp),
+            value: vibration,
+            temperatura: Number(row.temp ?? 0),
+            energia: Number(row.energia ?? vibration ** 2),
+            timestamp: timestamp.toISOString(),
+          };
+        });
+
+        const historyPoints = formatted.slice(-MAX_HISTORY);
+        historyRef.current = historyPoints;
+        setHistory(historyPoints.map((p) => ({ ...p })));
+
+        if (historyPoints.length > 0) {
+          const latest = historyPoints[historyPoints.length - 1];
+          const latestRow = rows[rows.length - 1];
+          setData({
+            vibracao: latest.value,
+            temperatura: latest.temperatura,
+            energia: latest.energia,
+            sensor_id: latestRow.sensor_id,
+            status: latestRow.status,
+            label: latestRow.label || "normal",
+            fault_type: latestRow.label || "normal",
+            risk_pct: Math.round(
+              (Number(latestRow.anomaly_score ?? 0) || 0) * 100,
+            ),
+            is_anomaly: String(latestRow.label || "normal") === "anomalia",
+            anomaly_score: Number(latestRow.anomaly_score ?? 0),
+            timestamp: latest.timestamp,
+            events: [],
+          });
+        }
+      }
+
+      // Processa anomalias
+      if (
+        anomaliesResponse.status === "ok" &&
+        Array.isArray(anomaliesResponse.data)
+      ) {
+        const formattedAnomalies = anomaliesResponse.data.map((anomaly) => ({
+          ...anomaly,
+          timestamp: new Date(anomaly.timestamp),
+          formattedTime: formatTime(new Date(anomaly.timestamp)),
+        }));
+        setAnomalies(formattedAnomalies);
+      }
+    } catch (err) {
+      console.error("Erro ao buscar dados históricos:", err);
+      setError("Falha ao carregar dados históricos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const startSimulation = async () => {
     if (started) return;
 
@@ -122,6 +202,7 @@ export function useSensorData() {
     setError(null);
 
     try {
+      await fetchHistory();
       const response = await startSimulationApi();
       if (response.status === "ok") {
         setStarted(true);
@@ -138,6 +219,8 @@ export function useSensorData() {
   };
 
   useEffect(() => {
+    fetchHistory();
+
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -149,6 +232,7 @@ export function useSensorData() {
   return {
     data,
     history,
+    anomalies,
     loading,
     error,
     isConnected,

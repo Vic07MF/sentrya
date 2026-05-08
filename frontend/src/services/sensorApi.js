@@ -82,6 +82,28 @@ async function checkHealth() {
 }
 
 /**
+ * Busca histórico de registros armazenados em SQLite
+ * @param {number} limit
+ * @param {string|null} sensorId
+ * @returns {Promise<Object>}
+ */
+async function getHistory(limit = 100, sensorId = null) {
+  try {
+    const params = new URLSearchParams();
+    params.append("limit", String(limit));
+    if (sensorId) params.append("sensor_id", sensorId);
+
+    const response = await fetch(
+      `${API_URL}/api/v1/dados/sqlite?${params.toString()}`,
+    );
+    return await response.json();
+  } catch (error) {
+    console.error("Erro ao buscar histórico:", error);
+    return { status: "error", count: 0, data: [] };
+  }
+}
+
+/**
  * Inicia a simulação de teste no backend
  * @returns {Promise<Object>}
  */
@@ -232,6 +254,8 @@ export {
   getSensor,
   getAlertas,
   checkHealth,
+  getHistory,
+  getAnomalyHistory,
   startSimulation,
   connectWebSocket,
   disconnectWebSocket,

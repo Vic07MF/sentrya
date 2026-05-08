@@ -1,8 +1,9 @@
 import asyncio
 import json
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Optional
 from collections import deque
+from app.db.sqlite import sqlite_storage
 from app.enum.enums import StatusSensor
 from app.core.config import settings
 from app.log.logger import log
@@ -13,10 +14,19 @@ class VibrationService:
     def __init__(self):
         # NOVO: Usa o gerador MPU6050
         self.mpu_generator = MPU6050DataGenerator(duration=60)  # usa o valor padrão do gerador        
-        # Mantém compatibilidade com estrutura antiga
-        self.sensores = {
-            "MPU6050_01": {
-                "sensor_id": "MPU6050_01",
+        # Inicializa múltiplos sensores simulando máquinas diferentes
+        machine_sensors = [
+            "MOTOR_PRINCIPAL",
+            "BOMBA_HIDRAULICA", 
+            "VENTILADOR_REFRIGERACAO",
+            "COMPRESSOR_AR",
+            "TRANSMISSAO_CORREIA"
+        ]
+        
+        self.sensores = {}
+        for sensor_id in machine_sensors:
+            self.sensores[sensor_id] = {
+                "sensor_id": sensor_id,
                 "vib_rms": 0.5,
                 "temp": 42.0,
                 "status": StatusSensor.OK,
@@ -24,8 +34,8 @@ class VibrationService:
                 "history": deque(maxlen=30),
                 "is_anomaly": False,
                 "anomaly_score": 0.0,
+                "label": "normal",
             }
-        }
 
         self.websocket_clients = []
         self.simulation_enabled = False
@@ -52,20 +62,24 @@ class VibrationService:
                     "sensor_id": sensor_id,
                     "vib_rms": sensor_data["vibracao"] / 100,  # Converte de mm/s para g
                     "temp": sensor_data["temperatura"],
+                    "energia": sensor_data.get("energia", 0.0),
                     "status": StatusSensor[sensor_data["status"]] if sensor_data["status"] in StatusSensor.__members__ else StatusSensor.OK,
                     "timestamp": datetime.fromisoformat(sensor_data["timestamp"]) if isinstance(sensor_data["timestamp"], str) else sensor_data["timestamp"],
                     "history": deque(maxlen=30),
                     "is_anomaly": sensor_data["is_anomaly"],
                     "anomaly_score": sensor_data["anomaly_score"],
+                    "label": sensor_data["label"],
                 }
             else:
                 # Atualiza sensor existente
                 self.sensores[sensor_id]["vib_rms"] = sensor_data["vibracao"] / 100
                 self.sensores[sensor_id]["temp"] = sensor_data["temperatura"]
+                self.sensores[sensor_id]["energia"] = sensor_data.get("energia", self.sensores[sensor_id].get("energia", 0.0))
                 self.sensores[sensor_id]["status"] = StatusSensor[sensor_data["status"]] if sensor_data["status"] in StatusSensor.__members__ else StatusSensor.OK
                 self.sensores[sensor_id]["timestamp"] = datetime.fromisoformat(sensor_data["timestamp"]) if isinstance(sensor_data["timestamp"], str) else sensor_data["timestamp"]
                 self.sensores[sensor_id]["is_anomaly"] = sensor_data["is_anomaly"]
                 self.sensores[sensor_id]["anomaly_score"] = sensor_data["anomaly_score"]
+                self.sensores[sensor_id]["label"] = sensor_data["label"]
             
             # Adiciona ao histórico
             self.sensores[sensor_id]["history"].append([
@@ -90,8 +104,11 @@ class VibrationService:
             dados_frontend = {
                 "vibracao": round(sensor_principal["vib_rms"] * 100, 2),
                 "temperatura": sensor_principal["temp"],
+                "energia": sensor_obj.get("energia", 0.0),
                 "sensor_id": sensor_principal["sensor_id"],
                 "status": sensor_principal["status"],
+                "label": sensor_obj.get("label", "normal"),
+                "fault_type": sensor_obj.get("label", "normal"),
                 "risk_pct": int(sensor_obj.get("anomaly_score", 0) * 100),
                 "is_anomaly": sensor_obj.get("is_anomaly", False),
                 "anomaly_score": sensor_obj.get("anomaly_score", 0),
@@ -155,6 +172,10 @@ class VibrationService:
                 })
         
         return alerts
+
+    def get_sqlite_records(self, limit: int = 100, sensor_id: Optional[str] = None):
+        """Retorna registros do banco SQLite gerado pelo MPD generator"""
+        return sqlite_storage.query_sensor_records(limit=limit, sensor_id=sensor_id)
 
 
 # Instância global

@@ -1,8 +1,8 @@
-
 from datetime import datetime
 from fastapi import APIRouter, WebSocket
 from fastapi import BackgroundTasks
 from fastapi.websockets import WebSocketState
+from typing import Optional
 from app.models import schema
 from app.services.vibration import vibration
 from app.log.logger import log
@@ -84,7 +84,28 @@ async def receber_dados(dados: dict):
     log.info(f"Recebido {sensor_id}: {vib_rms}g, {temp}°C")
     return {"status": "ok", "sensor": sensor_id}
 
-@router.post("/api/v1/dados/gerar-csv")
+@router.get("/dados/sqlite")
+async def listar_registros_sqlite(limit: int = 100, sensor_id: Optional[str] = None):
+    """Retorna registros de dados armazenados em SQLite."""
+    registros = vibration.get_sqlite_records(limit=limit, sensor_id=sensor_id)
+    return {
+        "status": "ok",
+        "count": len(registros),
+        "data": registros
+    }
+
+@router.get("/anomalias/historico")
+async def listar_historico_anomalias(limit: int = 20):
+    """Retorna o histórico de anomalias detectadas pela IA."""
+    from app.ia.ia import ia
+    anomalias = ia.get_recent_anomalies(limit=limit)
+    return {
+        "status": "ok",
+        "count": len(anomalias),
+        "data": anomalias
+    }
+
+@router.post("/dados/gerar-csv")
 async def gerar_novo_csv(background_tasks: BackgroundTasks):
     """Gera um novo arquivo CSV com dados frescos"""
     def regenerar():

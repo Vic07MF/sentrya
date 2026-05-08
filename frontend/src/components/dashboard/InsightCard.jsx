@@ -1,15 +1,21 @@
 "use client";
 
 import { TrendingUp } from "lucide-react";
-import { Card }    from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { IconBox } from "@/components/ui/IconBox";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getInsightMessage, isAnomaly, formatPercent } from "@/lib/utils";
 
 export function InsightCard({ data }) {
-  const loading  = !data;
-  const anomaly  = data ? isAnomaly(data.vibracao) : false;
-  const headline = data ? getInsightMessage(data.vibracao) : "";
+  const loading = !data;
+  const anomaly = data
+    ? data.fault_type === "anomalia" || isAnomaly(data.vibracao, data.status)
+    : false;
+  const headline = data
+    ? data.fault_type === "anomalia"
+      ? "IA identificou anomalia de falha"
+      : getInsightMessage(data.vibracao, data.status)
+    : "";
 
   return (
     <Card className="p-5">
@@ -34,7 +40,10 @@ export function InsightCard({ data }) {
 
       {/* Delta */}
       <div className="mb-4 flex items-center gap-1.5 font-mono text-xs text-status-warn">
-        <svg viewBox="0 0 24 24" className="h-3 w-3 fill-none stroke-current stroke-2">
+        <svg
+          viewBox="0 0 24 24"
+          className="h-3 w-3 fill-none stroke-current stroke-2"
+        >
           <polyline points="18 15 12 9 6 15" />
         </svg>
         {loading ? (
@@ -46,7 +55,9 @@ export function InsightCard({ data }) {
 
       {/* Risk row */}
       <div className="flex items-start gap-2.5 border-b border-accent/20 py-2.5">
-        <IconBox variant="warn" className="mt-0.5">⚠</IconBox>
+        <IconBox variant="warn" className="mt-0.5">
+          ⚠
+        </IconBox>
         <div>
           <p className="text-[13px] font-semibold text-brand-cream">
             Risco de falha em curto prazo
@@ -62,10 +73,14 @@ export function InsightCard({ data }) {
 
       {/* Recommendation row */}
       <div className="flex items-start gap-2.5 pt-2.5">
-        <IconBox variant="info" className="mt-0.5">◎</IconBox>
+        <IconBox variant="info" className="mt-0.5">
+          ◎
+        </IconBox>
         <div>
           <p className="text-[13px] font-semibold text-brand-cream">
-            {anomaly ? "Verificar Rolamento do Motor" : "Monitoramento Contínuo Ativo"}
+            {anomaly
+              ? "Verificar Rolamento do Motor"
+              : "Monitoramento Contínuo Ativo"}
           </p>
           <p className="mt-0.5 font-mono text-[11px] text-brand-muted">
             Recomendação baseada em padrão de vibração
